@@ -250,8 +250,9 @@ def render_position_cards(
         signal_ready_by_date = False
 
     show_next_holding = status.can_show_next_holding or signal_ready_by_date
-    next_holding_line = f"建议：{summary.next_holding_name}" if show_next_holding else "建议：-"
+    next_holding_line = summary.next_holding_name if show_next_holding else "-"
     next_code_line = summary.next_holding_code if show_next_holding else "-"
+    next_card_main = summary.next_holding_name if show_next_holding else status.status_text
 
     left, right = st.columns(2)
     with left:
@@ -273,8 +274,8 @@ def render_position_cards(
         st.markdown(
             f"""
             <div class="metric-card">
-                <div class="card-title">运行状态</div>
-                <div class="card-main">{status.status_text}</div>
+                <div class="card-title">下周持仓建议</div>
+                <div class="card-main">{next_card_main}</div>
                 <div class="card-line">预估下周持仓建议（数据取自当周收盘价格）：{next_holding_line}</div>
                 <div class="card-line">代码：{next_code_line}</div>
                 <div class="card-line">本周最后交易日：{status.current_trading_week_close_date}</div>
