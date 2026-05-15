@@ -314,8 +314,7 @@ def render_kpi_row(summary: StrategySummary) -> None:
 
 def render_equity_curve(rotation: pd.DataFrame, theme_mode: str) -> None:
     theme = get_theme(theme_mode)
-    curve = rotation[["日期", "策略净值"]].copy()
-    curve["日期"] = pd.to_datetime(curve["日期"])
+    curve, asset_curves, missing_assets = build_equity_curve_data(rotation)
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
@@ -335,24 +334,13 @@ def render_equity_curve(rotation: pd.DataFrame, theme_mode: str) -> None:
         )
     )
 
-    missing_assets = []
     for code in ETF_CHART_ORDER:
         name = ETF_LIST[code]
         close_col = f"{name}_close"
-        if close_col not in rotation.columns or rotation[close_col].dropna().empty:
-            missing_assets.append(f"{name}({code})")
+        asset = asset_curves.get(code)
+        if asset is None or asset.empty:
             continue
 
-        asset = rotation[["日期", close_col]].copy()
-        asset["日期"] = pd.to_datetime(asset["日期"])
-        asset[close_col] = pd.to_numeric(asset[close_col], errors="coerce")
-        asset = asset.dropna(subset=[close_col])
-        first_close = asset[close_col].iloc[0]
-        if pd.isna(first_close) or first_close == 0:
-            missing_assets.append(f"{name}({code})")
-            continue
-
-        asset["累计收益"] = asset[close_col] / first_close
         fig.add_trace(
             go.Scatter(
                 x=asset["日期"],
@@ -392,6 +380,98 @@ def render_equity_curve(rotation: pd.DataFrame, theme_mode: str) -> None:
     st.plotly_chart(fig, use_container_width=True)
     if missing_assets:
         st.warning("以下标的缺少收盘价数据，收益曲线已自动跳过：" + "、".join(missing_assets))
+
+
+def build_equity_curve_data(rotation: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, pd.DataFrame], list[str]]:
+    curve = rotation[["日期", "策略净值"]].copy()
+    curve["日期"] = pd.to_datetime(curve["日期"])
+    curve["策略净值"] = pd.to_numeric(curve["策略净值"], errors="coerce")
+    curve = curve.dropna(subset=["日期", "策略净值"])
+
+    missing_assets = []
+    asset_curves = {}
+    for code in ETF_CHART_ORDER:
+        name = ETF_LIST[code]
+        close_col = f"{name}_close"
+        if close_col not in rotation.columns or rotation[close_col].dropna().empty:
+            missing_assets.append(f"{name}({code})")
+            continue
+
+        asset = rotation[["日期", close_col]].copy()
+        asset["日期"] = pd.to_datetime(asset["日期"])
+        asset[close_col] = pd.to_numeric(asset[close_col], errors="coerce")
+        asset = asset.dropna(subset=["日期", close_col]).sort_values("日期").reset_index(drop=True)
+        first_close = asset[close_col].iloc[0]
+        if pd.isna(first_close) or first_close == 0:
+            missing_assets.append(f"{name}({code})")
+            continue
+
+        asset["累计收益"] = asset[close_col] / first_close
+        asset["收盘价"] = asset[close_col]
+        asset_curves[code] = asset
+    return curve, asset_curves, missing_assets
+
+
+def render_monthly_rolling_returns(rotation: pd.DataFrame, theme_mode: str) -> None:
+    theme = get_theme(theme_mode)
+    curve, asset_curves, missing_assets = build_equity_curve_data(rotation)
+    fig = go.Figure()
+
+    model = curve.copy().sort_values("日期")
+    model["月度滚动收益率"] = model["策略净值"] / model["策略净值"].shift(4) - 1
+    model = model.dropna(subset=["月度滚动收益率"])
+    fig.add_trace(
+        go.Scatter(
+            x=model["日期"],
+            y=model["月度滚动收益率"],
+            mode="lines",
+            name="CY-ETF轮动V1",
+            line=dict(color=theme["model"], width=2.8),
+            hovertemplate="日期：%{x|%Y-%m-%d}<br>名称：CY-ETF轮动V1<br>月度滚动收益率：%{y:.2%}<extra></extra>",
+        )
+    )
+
+    for code in ETF_CHART_ORDER:
+        name = ETF_LIST[code]
+        asset = asset_curves.get(code)
+        if asset is None or asset.empty:
+            continue
+        close_col = f"{name}_close"
+        monthly = asset[["日期", close_col]].copy().sort_values("日期")
+        monthly["月度滚动收益率"] = monthly[close_col] / monthly[close_col].shift(4) - 1
+        monthly = monthly.dropna(subset=["月度滚动收益率"])
+        fig.add_trace(
+            go.Scatter(
+                x=monthly["日期"],
+                y=monthly["月度滚动收益率"],
+                mode="lines",
+                name=name,
+                line=dict(color=ETF_LINE_COLORS.get(code, theme["accent_2"]), width=1.8),
+                hovertemplate=(
+                    "日期：%{x|%Y-%m-%d}<br>"
+                    f"名称：{name}<br>"
+                    f"代码：{code}<br>"
+                    "月度滚动收益率：%{y:.2%}<extra></extra>"
+                ),
+            )
+        )
+
+    fig.add_hline(y=0, line_width=1, line_dash="dot", line_color=theme["muted"])
+    fig.update_layout(
+        title="月度滚动收益率",
+        height=360,
+        template=theme["plot_template"],
+        paper_bgcolor=theme["app_bg"],
+        plot_bgcolor=theme["plot_bg"],
+        font=dict(color=theme["text"]),
+        margin=dict(l=20, r=20, t=55, b=20),
+        xaxis=dict(gridcolor=theme["grid"]),
+        yaxis=dict(gridcolor=theme["grid"], tickformat=".0%"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    if missing_assets:
+        st.warning("以下标的缺少收盘价数据，月度滚动收益率已自动跳过：" + "、".join(missing_assets))
 
 
 def render_data_source_status(source_status: pd.DataFrame) -> None:

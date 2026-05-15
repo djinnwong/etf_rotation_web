@@ -20,6 +20,7 @@ from ui_components import (
     render_header,
     render_holding_records,
     render_kpi_row,
+    render_monthly_rolling_returns,
     render_position_cards,
     render_win_rate_stats,
 )
@@ -62,7 +63,6 @@ def load_cache_only_dashboard_data() -> dict | None:
 with st.sidebar:
     st.header("系统控制")
     theme_mode = st.radio("外观模式", THEME_OPTIONS, index=THEME_OPTIONS.index(THEME_LIGHT), key="theme_mode_v2")
-    force_refresh = st.button("更新实时数据", type="primary")
     use_cache_only = st.checkbox("只使用本地缓存", value=False)
     st.divider()
     st.caption("收盘状态测试")
@@ -77,6 +77,14 @@ try:
 except ValueError:
     st.sidebar.warning("测试时间格式错误，请使用 YYYY-MM-DD HH:MM。当前已改用北京时间。")
     status = get_market_status()
+
+refresh_left, refresh_right = st.columns([1, 5])
+with refresh_left:
+    if st.button("更新实时数据", type="primary", use_container_width=True):
+        st.session_state["force_refresh_requested"] = True
+        st.cache_data.clear()
+        st.rerun()
+force_refresh = bool(st.session_state.pop("force_refresh_requested", False))
 
 try:
     if use_cache_only:
@@ -122,6 +130,7 @@ render_kpi_row(summary=summary)
 st.divider()
 render_data_source_status(source_status)
 render_equity_curve(rotation, theme_mode=theme_mode)
+render_monthly_rolling_returns(rotation, theme_mode=theme_mode)
 
 left, right = st.columns([1, 1])
 with left:
