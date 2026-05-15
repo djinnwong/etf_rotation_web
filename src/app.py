@@ -125,7 +125,7 @@ render_header(
     status=status,
 )
 render_position_cards(summary=summary, status=status, position_return=position_return)
-render_kpi_row(summary=summary)
+render_kpi_row(summary=summary, current_time=status.current_time)
 
 st.divider()
 render_data_source_status(source_status)

@@ -287,18 +287,22 @@ def render_position_cards(
     st.caption(f"{status.explanation}；{position_return.message}")
 
 
-def render_kpi_row(summary: StrategySummary) -> None:
+def render_kpi_row(summary: StrategySummary, current_time: str | None = None) -> None:
     recovery_equity = "-" if summary.max_drawdown_recovery_value is None else f"{summary.max_drawdown_recovery_value:.4f}"
+    current_drawdown = min(float(summary.latest_drawdown), 0.0)
+    current_drawdown_end_date = summary.current_drawdown_date
+    if current_time:
+        current_drawdown_end_date = current_time.split(" ")[0]
     col1, col2, col3 = st.columns(3)
     col1.metric("策略最新净值", f"{summary.latest_net_value:.4f}")
-    col2.metric("当前回撤", percent_text(summary.latest_drawdown))
+    col2.metric("当前回撤", percent_text(current_drawdown))
     col3.metric("最新策略周日期", summary.latest_signal_date)
     st.markdown(
         f"""
         <div class="status-strip">
             <div><span class="status-ok">当前回撤区间</span>
             <span class="small-muted">　{summary.current_drawdown_peak_date} 净值 {summary.current_drawdown_peak_value:.4f}
-            → {summary.current_drawdown_date} 净值 {summary.current_drawdown_value:.4f}</span></div>
+            → {current_drawdown_end_date} 净值 {summary.current_drawdown_value:.4f}</span></div>
             <div style="margin-top:8px;"><span class="status-ok">模型最大回撤</span>
             <span class="small-muted">　{percent_text(summary.max_drawdown)}
             ｜开始：{summary.max_drawdown_peak_date} 净值 {summary.max_drawdown_peak_value:.4f}
