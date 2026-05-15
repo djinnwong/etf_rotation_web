@@ -7,6 +7,12 @@ from strategy_engine import run_strategy
 def main() -> None:
     parser = argparse.ArgumentParser(description="更新 ETF 轮动数据")
     parser.add_argument("--diagnose", help="诊断单只 ETF 数据源，例如：--diagnose 518880")
+    parser.add_argument(
+        "--mode",
+        choices=["preclose", "final"],
+        default="final",
+        help="preclose=14:55盘中预估更新；final=15:03正式收盘更新",
+    )
     args = parser.parse_args()
 
     if args.diagnose:
@@ -16,7 +22,11 @@ def main() -> None:
         print(f"最终采用数据源: {selected_source}")
         return
 
-    print("开始更新 ETF 数据。网络失败时会自动使用本地缓存 CSV。")
+    if args.mode == "preclose":
+        print("开始 14:55 盘中预估更新：尝试获取各 ETF 最新可用价格。")
+    else:
+        print("开始 15:03 正式收盘更新：尝试获取各 ETF 周收盘价格。")
+    print("网络失败时会自动使用本地缓存 CSV。")
     data_result = fetch_weekly_prices_with_cache(force_refresh=True)
     print(data_result.message)
 

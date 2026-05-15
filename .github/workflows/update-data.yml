@@ -2,7 +2,11 @@ name: Update ETF data
 
 on:
   schedule:
+    # 14:55 Asia/Shanghai = 06:55 UTC.
+    # Pre-close run: use the latest available ETF prices for an estimated next-week signal.
+    - cron: "55 6 * * 1-5"
     # 15:03 Asia/Shanghai = 07:03 UTC.
+    # Final run: use the official post-close weekly prices.
     # GitHub Actions scheduled jobs can start a few minutes late.
     - cron: "3 7 * * 1-5"
   workflow_dispatch:
@@ -27,8 +31,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Update ETF data
-        run: python src/update_data.py
+      - name: Update ETF data at 14:55 pre-close
+        if: github.event.schedule == '55 6 * * 1-5'
+        run: python src/update_data.py --mode preclose
+
+      - name: Update ETF data at 15:03 final close
+        if: github.event.schedule == '3 7 * * 1-5' || github.event_name == 'workflow_dispatch'
+        run: python src/update_data.py --mode final
 
       - name: Commit updated data
         run: |
