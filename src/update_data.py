@@ -2,6 +2,7 @@ import argparse
 
 from data_fetcher import diagnose_etf_sources, fetch_weekly_prices_with_cache
 from strategy_engine import run_strategy
+from status_manager import should_send_weekly_preclose_alert
 from telegram_push import push_signal
 
 
@@ -15,6 +16,7 @@ def main() -> None:
         help="preclose=14:55盘中预估更新；final=15:03正式收盘更新",
     )
     parser.add_argument("--telegram", action="store_true", help="更新完成后推送 Telegram 提醒")
+    parser.add_argument("--force-telegram", action="store_true", help="仅用于人工测试：忽略交易日和时间窗口，强制发送 Telegram")
     args = parser.parse_args()
 
     if args.diagnose:
@@ -48,6 +50,19 @@ def main() -> None:
     print(cumulative_rank.to_string(index=False))
 
     if args.telegram:
+        if args.mode != "preclose" and not args.force_telegram:
+            print("当前不是 14:55 preclose 模式，跳过 Telegram。")
+            return
+
+        can_send, send_reason = should_send_weekly_preclose_alert()
+        print(f"Telegram 发送判断: {send_reason}")
+        if not can_send and not args.force_telegram:
+            print("Telegram 推送跳过。")
+            return
+
+        if args.force_telegram:
+            print("已启用 --force-telegram，忽略交易日和时间窗口，仅用于人工测试。")
+
         pushed = push_signal(
             signal_date=summary.latest_signal_date,
             next_holding_name=summary.next_holding_name,

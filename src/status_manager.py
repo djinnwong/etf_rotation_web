@@ -16,6 +16,8 @@ PRE_CLOSE_START = time(14, 55)
 MARKET_CLOSE = time(15, 0)
 DATA_READY = time(15, 3)
 NEXT_OPEN_TIME = time(9, 0)
+# 超过 15:00 后已经无法按 14:55 预估信号进行尾盘操作，因此 Telegram 不做延迟容错。
+TELEGRAM_PRE_CLOSE_END = MARKET_CLOSE
 
 MANUAL_MARKET_HOLIDAYS = {
     # 2025 年 A 股休市日。
@@ -204,3 +206,27 @@ def get_market_status(current_dt: datetime | None = None) -> MarketStatus:
         explanation=explanation,
         calendar_source=calendar_source,
     )
+
+
+def should_send_weekly_preclose_alert(current_dt: datetime | None = None) -> tuple[bool, str]:
+    now = current_dt.astimezone(CHINA_TZ) if current_dt else now_china()
+    today = now.date()
+
+    if not is_trading_day(today):
+        return False, f"{today:%Y-%m-%d} 不是交易日，跳过 Telegram。"
+
+    week_last_trading_day = get_week_last_trading_day(today)
+    if today != week_last_trading_day:
+        return (
+            False,
+            f"{today:%Y-%m-%d} 不是本周最后一个交易日，本周最后交易日是 {week_last_trading_day:%Y-%m-%d}，跳过 Telegram。",
+        )
+
+    current_time = now.time()
+    if not (PRE_CLOSE_START <= current_time < TELEGRAM_PRE_CLOSE_END):
+        return (
+            False,
+            f"当前时间 {now:%H:%M:%S} 不在 14:55 至 15:00 前的 Telegram 预估提醒窗口内，跳过 Telegram。",
+        )
+
+    return True, f"{today:%Y-%m-%d} 是本周最后一个交易日，当前处于 14:55 至 15:00 前的预估提醒窗口，允许发送 Telegram。"
