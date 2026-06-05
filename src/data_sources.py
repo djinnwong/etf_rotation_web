@@ -12,9 +12,9 @@ import requests
 from config import DATA_DIR, START_DATE, WEEKLY_PRICE_CSV
 
 
-MAX_RETRY_TIMES = 3
+MAX_RETRY_TIMES = 2
 RETRY_SLEEP_SECONDS = 2
-REQUEST_TIMEOUT_SECONDS = 15
+REQUEST_TIMEOUT_SECONDS = 6
 WEEKLY_ONLY_SOURCES = {"Excel导入缓存", "本地周线缓存"}
 
 
@@ -143,6 +143,47 @@ def fetch_eastmoney_etf_daily(code: str) -> SourceResult:
         return pd.DataFrame(rows)
 
     return retry_source(_fetch, source="东方财富接口")
+
+
+def _tencent_symbol(code: str) -> str:
+    return f"sh{code}" if code.startswith(("5", "6")) else f"sz{code}"
+
+
+def fetch_tencent_etf_daily(code: str) -> SourceResult:
+    def _fetch() -> pd.DataFrame:
+        symbol = _tencent_symbol(code)
+        url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+        params = {
+            "param": f"{symbol},day,{START_DATE},,4000",
+        }
+        response = requests.get(
+            url,
+            params=params,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+        symbol_data = payload.get("data", {}).get(symbol, {})
+        rows = symbol_data.get("day") or []
+        parsed_rows = []
+        for item in rows:
+            if len(item) < 5:
+                continue
+            parsed_rows.append(
+                {
+                    "date": item[0],
+                    "open": item[1],
+                    "close": item[2],
+                    "high": item[3],
+                    "low": item[4],
+                    "volume": item[5] if len(item) > 5 else 0,
+                    "amount": item[6] if len(item) > 6 else 0,
+                }
+            )
+        return pd.DataFrame(parsed_rows)
+
+    return retry_source(_fetch, source="腾讯行情接口")
 
 
 def _sina_symbol(code: str) -> str:

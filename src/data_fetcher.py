@@ -13,6 +13,7 @@ from data_sources import (
     fetch_eastmoney_etf_daily,
     fetch_fallback_from_weekly,
     fetch_sina_daily,
+    fetch_tencent_etf_daily,
     load_local_daily_cache,
     save_daily_cache,
 )
@@ -146,6 +147,7 @@ def _select_one_etf_daily(code: str, name: str) -> tuple[pd.DataFrame, dict]:
     source_attempts = [
         fetch_akshare_etf_daily,
         fetch_eastmoney_etf_daily,
+        fetch_tencent_etf_daily,
         fetch_sina_daily,
         lambda symbol: load_local_daily_cache(symbol, name),
         lambda symbol: fetch_fallback_from_weekly(symbol, name),
@@ -196,6 +198,7 @@ def diagnose_etf_sources(code: str) -> tuple[pd.DataFrame, str]:
     attempts = [
         ("AkShare ETF 历史行情接口", fetch_akshare_etf_daily),
         ("东方财富场内 ETF 历史接口", fetch_eastmoney_etf_daily),
+        ("腾讯行情接口", fetch_tencent_etf_daily),
         ("新浪行情", fetch_sina_daily),
         ("本地缓存", lambda symbol: load_local_daily_cache(symbol, name)),
         ("fallback_from_weekly", lambda symbol: fetch_fallback_from_weekly(symbol, name)),

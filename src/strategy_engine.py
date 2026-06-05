@@ -280,6 +280,16 @@ def _close_on_date(close_series: pd.DataFrame, target: datetime) -> tuple[str, f
     return row["date"].strftime("%Y-%m-%d"), float(row["close"])
 
 
+def _close_on_or_before_date(close_series: pd.DataFrame, target: datetime) -> tuple[str, float] | None:
+    if close_series.empty:
+        return None
+    available = close_series[close_series["date"].dt.date <= target.date()]
+    if available.empty:
+        return None
+    row = available.iloc[-1]
+    return row["date"].strftime("%Y-%m-%d"), float(row["close"])
+
+
 def build_position_return_snapshot(summary: StrategySummary, current_time: str) -> PositionReturnSnapshot:
     name = summary.current_holding_name
     code = summary.current_holding_code
@@ -309,7 +319,8 @@ def build_position_return_snapshot(summary: StrategySummary, current_time: str) 
         )
 
     base = _close_on_date(close_series, base_target)
-    current = _close_on_date(close_series, current_target)
+    current_exact = _close_on_date(close_series, current_target)
+    current = current_exact or _close_on_or_before_date(close_series, current_target)
     if base is None or current is None:
         missing = []
         if base is None:
@@ -331,13 +342,19 @@ def build_position_return_snapshot(summary: StrategySummary, current_time: str) 
         return PositionReturnSnapshot(None, base_date, base_price, current_date, current_price, "基准价为 0，无法计算")
 
     return_rate = current_price / base_price - 1
+    message = "当前收益率=最新已完成交易日收盘价/实际买入日收盘价-1"
+    if current_exact is None and current_date != current_target_text:
+        message = (
+            f"缺少现值日 {current_target_text} 的真实日线收盘价，"
+            f"当前收益率暂用 {current_date} 最新可用真实日线收盘价计算"
+        )
     return PositionReturnSnapshot(
         return_rate=return_rate,
         base_date=base_date,
         base_price=base_price,
         current_date=current_date,
         current_price=current_price,
-        message="当前收益率=最新已完成交易日收盘价/实际买入日收盘价-1",
+        message=message,
     )
 
 
