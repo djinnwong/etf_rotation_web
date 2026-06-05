@@ -1,9 +1,26 @@
 import argparse
+from datetime import datetime
+from time import sleep
 
 from data_fetcher import diagnose_etf_sources, fetch_weekly_prices_with_cache
 from strategy_engine import run_strategy
-from status_manager import should_send_weekly_preclose_alert
+from status_manager import CHINA_TZ, MARKET_CLOSE, PRE_CLOSE_START, should_send_weekly_preclose_alert, now_china
 from telegram_push import push_signal
+
+
+def wait_until_preclose_window() -> None:
+    now = now_china()
+    target_dt = datetime.combine(now.date(), PRE_CLOSE_START, tzinfo=CHINA_TZ)
+    close_dt = datetime.combine(now.date(), MARKET_CLOSE, tzinfo=CHINA_TZ)
+
+    if now < target_dt:
+        wait_seconds = int((target_dt - now).total_seconds())
+        print(f"当前北京时间 {now:%Y-%m-%d %H:%M:%S}，等待到 14:55 后再取数和推送，等待 {wait_seconds} 秒。")
+        sleep(wait_seconds)
+        return
+
+    if now >= close_dt:
+        print(f"当前北京时间 {now:%Y-%m-%d %H:%M:%S} 已到 15:00 或之后，本次不会发送 Telegram。")
 
 
 def main() -> None:
@@ -17,6 +34,7 @@ def main() -> None:
     )
     parser.add_argument("--telegram", action="store_true", help="更新完成后推送 Telegram 提醒")
     parser.add_argument("--force-telegram", action="store_true", help="仅用于人工测试：忽略交易日和时间窗口，强制发送 Telegram")
+    parser.add_argument("--wait-until-preclose", action="store_true", help="14:55 前启动时等待到 14:55 再取数和推送")
     args = parser.parse_args()
 
     if args.diagnose:
@@ -28,6 +46,8 @@ def main() -> None:
 
     if args.mode == "preclose":
         print("开始 14:55 盘中预估更新：尝试获取各 ETF 最新可用价格。")
+        if args.wait_until_preclose:
+            wait_until_preclose_window()
     else:
         print("开始 15:03 正式收盘更新：尝试获取各 ETF 周收盘价格。")
     print("网络失败时会自动使用本地缓存 CSV。")

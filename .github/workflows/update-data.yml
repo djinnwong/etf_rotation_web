@@ -2,9 +2,9 @@ name: Update ETF data
 
 on:
   schedule:
-    # 14:55 Asia/Shanghai = 06:55 UTC.
-    # Pre-close run: use the latest available ETF prices for an estimated next-week signal.
-    - cron: "55 6 * * 1-5"
+    # 14:35 Asia/Shanghai = 06:35 UTC.
+    # Start early, then the script waits until 14:55 before fetching prices and sending Telegram.
+    - cron: "35 6 * * 1-5"
     # 15:03 Asia/Shanghai = 07:03 UTC.
     # Final run: use the official post-close weekly prices.
     # GitHub Actions scheduled jobs can start a few minutes late.
@@ -41,11 +41,11 @@ jobs:
           pip install -r requirements.txt
 
       - name: Update ETF data at 14:55 pre-close
-        if: github.event.schedule == '55 6 * * 1-5' || github.event.inputs.mode == 'preclose'
+        if: github.event.schedule == '35 6 * * 1-5' || github.event.inputs.mode == 'preclose'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python src/update_data.py --mode preclose --telegram
+        run: python src/update_data.py --mode preclose --telegram --wait-until-preclose
 
       - name: Update ETF data at 15:03 final close
         if: github.event.schedule == '3 7 * * 1-5' || github.event.inputs.mode == 'final'
