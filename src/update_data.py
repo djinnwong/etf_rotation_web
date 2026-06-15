@@ -46,8 +46,6 @@ def main() -> None:
 
     if args.mode == "preclose":
         print("开始 14:55 盘中预估更新：尝试获取各 ETF 最新可用价格。")
-        if args.wait_until_preclose:
-            wait_until_preclose_window()
     else:
         print("开始 15:03 正式收盘更新：尝试获取各 ETF 周收盘价格。")
     print("网络失败时会自动使用本地缓存 CSV。")
@@ -73,6 +71,9 @@ def main() -> None:
         if args.mode != "preclose" and not args.force_telegram:
             print("当前不是 14:55 preclose 模式，跳过 Telegram。")
             return
+
+        if args.wait_until_preclose and not args.force_telegram:
+            wait_until_preclose_window()
 
         can_send, send_reason = should_send_weekly_preclose_alert()
         print(f"Telegram 发送判断: {send_reason}")
