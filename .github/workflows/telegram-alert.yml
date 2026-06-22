@@ -1,0 +1,40 @@
+name: Send Telegram Alert
+
+on:
+  schedule:
+    # 14:40 Asia/Shanghai = 06:40 UTC.
+    # Lightweight alert-only job. It waits until 14:55, then sends before 15:00.
+    - cron: "40 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force_alert:
+        description: "仅用于人工测试：忽略交易日和时间窗口，立即发送 Telegram"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  telegram-alert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Send weekly pre-close Telegram alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ "${{ github.event.inputs.force_alert }}" = "true" ]; then
+            python src/send_telegram_alert.py --force
+          else
+            python src/send_telegram_alert.py --wait-until-preclose
+          fi

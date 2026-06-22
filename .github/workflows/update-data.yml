@@ -2,9 +2,9 @@ name: Update ETF data
 
 on:
   schedule:
-    # 14:30 Asia/Shanghai = 06:30 UTC.
-    # Start early, fetch/calculate first, then wait until 14:55 before sending Telegram.
-    - cron: "30 6 * * 1-5"
+    # 14:20 Asia/Shanghai = 06:20 UTC.
+    # Pre-close data refresh only. Telegram is sent by telegram-alert.yml.
+    - cron: "20 6 * * 1-5"
     # 15:03 Asia/Shanghai = 07:03 UTC.
     # Final run: use the official post-close weekly prices.
     # GitHub Actions scheduled jobs can start a few minutes late.
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "手动测试模式：preclose 会发送 Telegram，final 只更新正式收盘数据"
+        description: "手动测试模式：preclose 更新盘中预估数据，final 更新正式收盘数据"
         required: true
         default: "preclose"
         type: choice
@@ -40,12 +40,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Update ETF data at 14:55 pre-close
-        if: github.event.schedule == '30 6 * * 1-5' || github.event.inputs.mode == 'preclose'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python src/update_data.py --mode preclose --telegram --wait-until-preclose
+      - name: Update ETF data before 14:55 pre-close alert
+        if: github.event.schedule == '20 6 * * 1-5' || github.event.inputs.mode == 'preclose'
+        run: python src/update_data.py --mode preclose
 
       - name: Update ETF data at 15:03 final close
         if: github.event.schedule == '3 7 * * 1-5' || github.event.inputs.mode == 'final'
