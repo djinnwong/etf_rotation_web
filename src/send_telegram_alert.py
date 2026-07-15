@@ -8,6 +8,7 @@ from pathlib import Path
 from time import sleep
 from urllib import request
 import json
+import subprocess
 
 from config import ROTATION_RESULT_CSV
 from status_manager import CHINA_TZ, MARKET_CLOSE, PRE_CLOSE_START, should_send_weekly_preclose_alert, now_china
@@ -68,15 +69,23 @@ def send_telegram_message(message: str) -> None:
         print(f"Telegram API response: {body}")
 
 
+def refresh_repository() -> None:
+    result = subprocess.run(["git", "pull", "--ff-only"], text=True, capture_output=True, check=False)
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.stderr.strip():
+        print(result.stderr.strip())
+    if result.returncode != 0:
+        raise RuntimeError("拉取最新策略数据失败，已停止 Telegram 推送，避免发送旧信号。")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="发送每周最后交易日 14:55 Telegram 持仓提醒")
     parser.add_argument("--wait-until-preclose", action="store_true", help="14:55 前启动时等待到 14:55 再发送")
     parser.add_argument("--force", action="store_true", help="仅用于人工测试：忽略交易日和时间窗口")
     parser.add_argument("--dry-run", action="store_true", help="只打印将要发送的内容，不实际调用 Telegram")
+    parser.add_argument("--refresh-repo", action="store_true", help="发送前先 git pull 最新策略数据")
     args = parser.parse_args()
-
-    signal_date, holding = read_latest_signal()
-    print(f"读取到最新信号: {signal_date} {holding}")
 
     if args.wait_until_preclose and not args.force:
         wait_until_preclose_window()
@@ -89,6 +98,12 @@ def main() -> None:
 
     if args.force:
         print("已启用 --force，仅用于人工测试。")
+
+    if args.refresh_repo:
+        refresh_repository()
+
+    signal_date, holding = read_latest_signal()
+    print(f"读取到最新信号: {signal_date} {holding}")
 
     message = f"SB1:{holding}"
     if args.dry_run:

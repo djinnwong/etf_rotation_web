@@ -2,9 +2,9 @@ name: Send Telegram Alert
 
 on:
   schedule:
-    # 14:40 Asia/Shanghai = 06:40 UTC.
-    # Lightweight alert-only job. It waits until 14:55, then sends before 15:00.
-    - cron: "40 6 * * 1-5"
+    # 14:00 Asia/Shanghai = 06:00 UTC.
+    # Start early to avoid GitHub schedule delays, then wait until 14:55.
+    - cron: "0 6 * * 1-5"
   workflow_dispatch:
     inputs:
       force_alert:
@@ -36,5 +36,5 @@ jobs:
           if [ "${{ github.event.inputs.force_alert }}" = "true" ]; then
             python src/send_telegram_alert.py --force
           else
-            python src/send_telegram_alert.py --wait-until-preclose
+            python src/send_telegram_alert.py --wait-until-preclose --refresh-repo
           fi

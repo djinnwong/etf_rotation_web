@@ -358,9 +358,13 @@ def build_position_return_snapshot(summary: StrategySummary, current_time: str) 
     )
 
 
-def run_strategy(prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, StrategySummary]:
+def run_strategy(
+    prices: pd.DataFrame,
+    save_result: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, StrategySummary]:
     rotation = calculate_rotation(prices)
-    rotation.to_csv(ROTATION_RESULT_CSV, index=False, encoding="utf-8-sig")
+    if save_result:
+        rotation.to_csv(ROTATION_RESULT_CSV, index=False, encoding="utf-8-sig")
     holding_records = build_holding_records(rotation)
     win_stats = build_win_rate_stats(holding_records)
     cumulative_rank = build_cumulative_rank(holding_records)

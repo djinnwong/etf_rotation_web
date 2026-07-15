@@ -33,7 +33,7 @@ DASHBOARD_CACHE_VERSION = "2026-05-15-v8-excel-weekly-history"
 @st.cache_data(show_spinner=False)
 def load_dashboard_data(force_refresh: bool, cache_version: str) -> dict:
     data_result = fetch_weekly_prices_with_cache(force_refresh=force_refresh)
-    rotation, holding_records, win_stats, cumulative_rank, summary = run_strategy(data_result.data)
+    rotation, holding_records, win_stats, cumulative_rank, summary = run_strategy(data_result.data, save_result=False)
     return {
         "data_result": data_result,
         "rotation": rotation,
@@ -47,7 +47,7 @@ def load_dashboard_data(force_refresh: bool, cache_version: str) -> dict:
 def load_cache_only_dashboard_data() -> dict | None:
     try:
         data_result = load_cached_weekly_prices()
-        rotation, holding_records, win_stats, cumulative_rank, summary = run_strategy(data_result.data)
+        rotation, holding_records, win_stats, cumulative_rank, summary = run_strategy(data_result.data, save_result=False)
         return {
             "data_result": data_result,
             "rotation": rotation,
