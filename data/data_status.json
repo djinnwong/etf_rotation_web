@@ -1,7 +1,7 @@
 {
-  "source": "cache",
-  "message": "实时数据源失败，当前使用本地缓存。最新策略周日期：2026-08-10",
-  "updated_at": "2026-08-17 07:26:53",
-  "latest_week": "2026-08-10",
-  "error": "部分或全部 ETF 使用本地缓存。"
+  "source": "realtime",
+  "message": "当前使用实时数据，最新策略周日期：2026-08-17",
+  "updated_at": "2026-08-17 07:55:52",
+  "latest_week": "2026-08-17",
+  "error": null
 }
